@@ -360,8 +360,16 @@ func (p *System) PostLocal(m *cfacade.Message) bool {
 	if targetActor, found := p.GetActor(m.TargetPath().ActorID); found {
 		if targetActor.state == WorkerState {
 			targetActor.PostLocal(m)
+			return true
 		}
-		return true
+		clog.Warnf("[PostLocal] actor is not work state. [source = %s, target = %s -> %s], "+
+			"targetActor.state = %v",
+			m.Source,
+			m.Target,
+			m.FuncName,
+			targetActor.state,
+		)
+		return false
 	}
 
 	clog.Warnf("[PostLocal] actor not found. [source = %s, target = %s -> %s]",

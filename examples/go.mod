@@ -1,6 +1,6 @@
 module github.com/cherry-game/cherry/examples
 
-go 1.18
+go 1.22.0
 
 require (
 	github.com/ahmetb/go-linq/v3 v3.2.0
