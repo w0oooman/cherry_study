@@ -1,12 +1,13 @@
 package cherryActor
 
 import (
-	"reflect"
-
+	"github.com/cherry-game/cherry/net/parser/pomelo"
 	"google.golang.org/protobuf/proto"
+	"reflect"
 
 	ccode "github.com/cherry-game/cherry/code"
 	cerror "github.com/cherry-game/cherry/error"
+	cherryError "github.com/cherry-game/cherry/error"
 	creflect "github.com/cherry-game/cherry/extend/reflect"
 	cutils "github.com/cherry-game/cherry/extend/utils"
 	cfacade "github.com/cherry-game/cherry/facade"
@@ -14,7 +15,23 @@ import (
 	cproto "github.com/cherry-game/cherry/net/proto"
 )
 
-func InvokeLocalFunc(app cfacade.IApplication, fi *creflect.FuncInfo, m *cfacade.Message) {
+func PCall(method *creflect.FuncInfo, args []reflect.Value) (rets interface{}, err error) {
+	r := method.Value.Call(args)
+	// r can have 0 length in case of notify handlers
+	// otherwise it will have 2 outputs: an interface and an error
+	if len(r) == 2 {
+		if v := r[1].Interface(); v != nil {
+			err = v.(error)
+		} else if !r[0].IsNil() {
+			rets = r[0].Interface()
+		} else {
+			err = cherryError.ErrReplyShouldBeNotNull
+		}
+	}
+	return
+}
+
+func InvokeLocalFunc(app cfacade.IApplication, fi *creflect.FuncInfo, m *cfacade.Message, actor cfacade.IActor) {
 	if app == nil {
 		clog.Errorf("[InvokeLocalFunc] app is nil. [message = %+v]", m)
 		return
@@ -25,10 +42,18 @@ func InvokeLocalFunc(app cfacade.IApplication, fi *creflect.FuncInfo, m *cfacade
 	values := make([]reflect.Value, 2)
 	values[0] = reflect.ValueOf(m.Session) // session
 	values[1] = reflect.ValueOf(m.Args)    // args
-	fi.Value.Call(values)
+	resp, err := PCall(fi, values)
+	s := m.Session
+	if err == nil || reflect.ValueOf(err).IsNil() {
+		pomelo.Response(actor, s.AgentPath, s.Sid, s.Mid, resp)
+	} else {
+		pomelo.ResponseError(actor, s.AgentPath, s.Sid, s.Mid, err)
+		clog.Warnf("[InvokeLocalFunc] err:%s,target=%s,funcName=%s",
+			err.Error(), m.Target, m.FuncName)
+	}
 }
 
-func InvokeRemoteFunc(app cfacade.IApplication, fi *creflect.FuncInfo, m *cfacade.Message) {
+func InvokeRemoteFunc(app cfacade.IApplication, fi *creflect.FuncInfo, m *cfacade.Message, actor cfacade.IActor) {
 	if app == nil {
 		clog.Errorf("[InvokeRemoteFunc] app is nil. [message = %+v]", m)
 		return

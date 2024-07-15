@@ -105,7 +105,7 @@ func (p *Actor) processLocal() {
 
 	next, invoke := p.handler.OnLocalReceived(m)
 	if invoke {
-		p.invokeFunc(p.localMail, p.App(), p.system.localInvokeFunc, m)
+		p.invokeFunc(p.localMail, p.App(), p.system.localInvokeFunc, m, p)
 	}
 
 	if !next {
@@ -114,7 +114,7 @@ func (p *Actor) processLocal() {
 
 	if m.TargetPath().IsChild() {
 		if p.path.IsChild() {
-			p.invokeFunc(p.localMail, p.App(), p.system.localInvokeFunc, m)
+			p.invokeFunc(p.localMail, p.App(), p.system.localInvokeFunc, m, p)
 		} else {
 			if childActor, foundChild := p.findChildActor(m); foundChild {
 				childActor.PostLocal(m)
@@ -123,7 +123,7 @@ func (p *Actor) processLocal() {
 			}
 		}
 	} else {
-		p.invokeFunc(p.localMail, p.App(), p.system.localInvokeFunc, m)
+		p.invokeFunc(p.localMail, p.App(), p.system.localInvokeFunc, m, p)
 	}
 }
 
@@ -137,7 +137,7 @@ func (p *Actor) processRemote() {
 
 	next, invoke := p.handler.OnRemoteReceived(m)
 	if invoke {
-		p.invokeFunc(p.remoteMail, p.App(), p.system.remoteInvokeFunc, m)
+		p.invokeFunc(p.remoteMail, p.App(), p.system.remoteInvokeFunc, m, p)
 	}
 
 	if !next {
@@ -146,7 +146,7 @@ func (p *Actor) processRemote() {
 
 	if m.TargetPath().IsChild() {
 		if p.path.IsChild() {
-			p.invokeFunc(p.remoteMail, p.App(), p.system.remoteInvokeFunc, m)
+			p.invokeFunc(p.remoteMail, p.App(), p.system.remoteInvokeFunc, m, p)
 		} else {
 			if childActor, foundChild := p.findChildActor(m); foundChild {
 				childActor.PostRemote(m)
@@ -155,7 +155,7 @@ func (p *Actor) processRemote() {
 			}
 		}
 	} else {
-		p.invokeFunc(p.remoteMail, p.App(), p.system.remoteInvokeFunc, m)
+		p.invokeFunc(p.remoteMail, p.App(), p.system.remoteInvokeFunc, m, p)
 	}
 }
 
@@ -169,7 +169,13 @@ func (p *Actor) processEvent() {
 	p.event.funcInvoke(eventData)
 }
 
-func (p *Actor) invokeFunc(mb *mailbox, app cfacade.IApplication, fn cfacade.InvokeFunc, m *cfacade.Message) {
+func (p *Actor) invokeFunc(
+	mb *mailbox,
+	app cfacade.IApplication,
+	fn cfacade.InvokeFunc,
+	m *cfacade.Message,
+	actor cfacade.IActor,
+) {
 	funcInfo, found := mb.funcMap[m.FuncName]
 	if !found {
 		clog.Warnf("[%s] Function not found. [source = %s, target = %s -> %s]",
@@ -219,7 +225,7 @@ func (p *Actor) invokeFunc(mb *mailbox, app cfacade.IApplication, fn cfacade.Inv
 		}
 	}()
 
-	fn(app, funcInfo, m)
+	fn(app, funcInfo, m, actor)
 }
 
 func (p *Actor) findChildActor(m *cfacade.Message) (*Actor, bool) {

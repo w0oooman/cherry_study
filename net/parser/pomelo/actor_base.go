@@ -1,6 +1,7 @@
 package pomelo
 
 import (
+	cherryError "github.com/cherry-game/cherry/error"
 	cfacade "github.com/cherry-game/cherry/facade"
 	clog "github.com/cherry-game/cherry/logger"
 	cactor "github.com/cherry-game/cherry/net/actor"
@@ -24,6 +25,14 @@ func (p *ActorBase) Response(session *cproto.Session, v interface{}) {
 
 func (p *ActorBase) ResponseCode(session *cproto.Session, statusCode int32) {
 	ResponseCode(p, session.AgentPath, session.Sid, session.Mid, statusCode)
+}
+
+func (p *ActorBase) ResponseCodeAndMessage(session *cproto.Session, statusCode int32, message string) {
+	ResponseCodeAndMessage(p, session.AgentPath, session.Sid, session.Mid, statusCode, message)
+}
+
+func (p *ActorBase) ResponseError(session *cproto.Session, err error) {
+	ResponseError(p, session.AgentPath, session.Sid, session.Mid, err)
 }
 
 func (p *ActorBase) Push(session *cproto.Session, route string, v interface{}) {
@@ -62,6 +71,26 @@ func ResponseCode(iActor cfacade.IActor, agentPath, sid string, mid uint32, stat
 	}
 
 	iActor.Call(agentPath, ResponseFuncName, rsp)
+}
+
+func ResponseCodeAndMessage(iActor cfacade.IActor, agentPath, sid string, mid uint32, statusCode int32, message string) {
+	rsp := &cproto.PomeloResponse{
+		Sid:     sid,
+		Mid:     mid,
+		Code:    statusCode,
+		Message: message,
+	}
+
+	iActor.Call(agentPath, ResponseFuncName, rsp)
+}
+
+func ResponseError(iActor cfacade.IActor, agentPath, sid string, mid uint32, err error) {
+	baseError, ok := err.(*cherryError.BaseError)
+	if !ok {
+		clog.Errorf("[ResponseError] err type is not *cherryError.BaseError, err=%s", err.Error())
+		return
+	}
+	ResponseCodeAndMessage(iActor, agentPath, sid, mid, baseError.ErrorCode(), baseError.Error())
 }
 
 func Push(iActor cfacade.IActor, agentPath, sid, route string, v interface{}) {

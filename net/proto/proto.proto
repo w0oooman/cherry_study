@@ -26,6 +26,7 @@ message MemberList {
 message Response {
   int32 code = 1; // message code
   bytes data = 2; // message data
+  string message = 3;   // error message
 }
 
 message ClusterPacket {
@@ -47,10 +48,11 @@ message Session {
 }
 
 message PomeloResponse {
-  string sid = 1;
-  uint32 mid = 2;
-  bytes data = 3;
-  int32 code = 4;
+  string sid     = 1;
+  uint32 mid     = 2;
+  bytes data     = 3;
+  int32 code     = 4;
+  string message = 5;   // error message
 }
 
 message PomeloPush {

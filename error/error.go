@@ -5,6 +5,53 @@ import (
 	"fmt"
 )
 
+type BaseError struct {
+	Code    int32
+	Message string
+}
+
+// NewError ctor
+func NewError(err error, code int32) *BaseError {
+	if err, ok := err.(*BaseError); ok {
+		return err
+	}
+
+	e := &BaseError{
+		Code:    code,
+		Message: err.Error(),
+	}
+	return e
+
+}
+
+func (e *BaseError) Error() string {
+	return e.Message
+}
+
+func (e *BaseError) ErrorCode() int32 {
+	return e.Code
+}
+
+// CodeFromError returns the code of error.
+// If error is nil, return empty string.
+// If error is not a base error, returns unkown code
+func CodeFromError(err error) int32 {
+	if err == nil {
+		return UnknownCode
+	}
+
+	baseError, ok := err.(*BaseError)
+	if !ok {
+		return UnknownCode
+	}
+
+	if baseError == nil {
+		return UnknownCode
+	}
+
+	return baseError.ErrorCode()
+}
+
 func Error(text string) error {
 	return errors.New(text)
 }
@@ -48,9 +95,11 @@ var (
 
 // message
 var (
-	MessageWrongType     = Error("wrong message type")
-	MessageInvalid       = Error("invalid message")
-	MessageRouteNotFound = Error("route info not found in dictionary")
+	ErrUnknownCode          = Error("unknown code")
+	MessageWrongType        = Error("wrong message type")
+	MessageInvalid          = Error("invalid message")
+	MessageRouteNotFound    = Error("route info not found in dictionary")
+	ErrReplyShouldBeNotNull = errors.New("reply must not be null")
 )
 
 var (

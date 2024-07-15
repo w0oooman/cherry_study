@@ -22,7 +22,7 @@ type (
 		SetExecutionTimeout(t int64)
 	}
 
-	InvokeFunc func(app IApplication, fi *creflect.FuncInfo, m *Message)
+	InvokeFunc func(app IApplication, fi *creflect.FuncInfo, m *Message, actor IActor)
 
 	IActor interface {
 		App() IApplication

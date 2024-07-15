@@ -151,7 +151,8 @@ func (p *actor) response(rsp *cproto.PomeloResponse) {
 		agent.ResponseMID(rsp.Mid, rsp.Data, false)
 	} else {
 		errRsp := &cproto.Response{
-			Code: rsp.Code,
+			Code:    rsp.Code,
+			Message: rsp.Message,
 		}
 		agent.ResponseMID(rsp.Mid, errRsp, true)
 	}

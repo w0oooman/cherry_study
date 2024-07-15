@@ -1,9 +1,11 @@
 package player
 
 import (
+	cherryError "github.com/cherry-game/cherry/error"
 	"github.com/cherry-game/cherry/examples/demo_game_cluster/internal/code"
 	"github.com/cherry-game/cherry/examples/demo_game_cluster/internal/data"
 	"github.com/cherry-game/cherry/examples/demo_game_cluster/internal/event"
+	gameError "github.com/cherry-game/cherry/examples/demo_game_cluster/internal/game_error"
 	"github.com/cherry-game/cherry/examples/demo_game_cluster/internal/pb"
 	sessionKey "github.com/cherry-game/cherry/examples/demo_game_cluster/internal/session_key"
 	"github.com/cherry-game/cherry/examples/demo_game_cluster/nodes/game/db"
@@ -67,37 +69,32 @@ func (p *actorPlayer) playerSelect(session *cproto.Session, _ *pb.None) {
 }
 
 // playerCreate 玩家创角
-func (p *actorPlayer) playerCreate(session *cproto.Session, req *pb.PlayerCreateRequest) {
+func (p *actorPlayer) playerCreate(session *cproto.Session, req *pb.PlayerCreateRequest) (*pb.PlayerCreateResponse, error) {
 	if req.Gender > 1 {
-		p.ResponseCode(session, code.PlayerCreateFail)
-		return
+		return nil, cherryError.NewError(nil, code.PlayerCreateFail)
 	}
 
 	// 检查玩家昵称
 	if len(req.PlayerName) < 1 {
-		p.ResponseCode(session, code.PlayerCreateFail)
-		return
+		return nil, cherryError.NewError(gameError.ErrRoleNameIsNil, code.PlayerCreateFail)
 	}
 
 	// 帐号是否已经在当前游戏服存在角色
 	if db.GetPlayerIdWithUID(session.Uid) > 0 {
-		p.ResponseCode(session, code.PlayerCreateFail)
-		return
+		return nil, cherryError.NewError(nil, code.PlayerIDExistent)
 	}
 
 	// 获取创角初始化配置
 	playerInitRow, found := data.PlayerInitConfig.Get(req.Gender)
 	if found == false {
-		p.ResponseCode(session, code.PlayerCreateFail)
-		return
+		return nil, cherryError.NewError(gameError.ErrRoleInitConfigIsNonExistent, code.PlayerCreateFail)
 	}
 
 	// 创建角色&添加角色初始的资产
 	serverId := session.GetInt32(sessionKey.ServerID)
 	newPlayerTable, errCode := db.CreatePlayer(session, req.PlayerName, serverId, playerInitRow)
 	if code.IsFail(errCode) {
-		p.ResponseCode(session, errCode)
-		return
+		return nil, cherryError.NewError(nil, errCode)
 	}
 
 	// TODO 更新最后一次登陆的角色信息到中心节点
@@ -107,11 +104,9 @@ func (p *actorPlayer) playerCreate(session *cproto.Session, req *pb.PlayerCreate
 	p.PostEvent(&playerCreateEvent)
 
 	playerInfo := buildPBPlayer(newPlayerTable)
-	response := &pb.PlayerCreateResponse{
+	return &pb.PlayerCreateResponse{
 		Player: &playerInfo,
-	}
-
-	p.Response(session, response)
+	}, nil
 }
 
 // playerEnter 玩家进入游戏
