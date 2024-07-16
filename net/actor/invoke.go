@@ -1,7 +1,6 @@
 package cherryActor
 
 import (
-	"github.com/cherry-game/cherry/net/parser/pomelo"
 	"google.golang.org/protobuf/proto"
 	"reflect"
 
@@ -15,11 +14,12 @@ import (
 	cproto "github.com/cherry-game/cherry/net/proto"
 )
 
-func PCall(method *creflect.FuncInfo, args []reflect.Value) (rets interface{}, err error) {
+func PCall(method *creflect.FuncInfo, args []reflect.Value) (rets interface{}, err error, ok bool) {
 	r := method.Value.Call(args)
 	// r can have 0 length in case of notify handlers
 	// otherwise it will have 2 outputs: an interface and an error
 	if len(r) == 2 {
+		ok = true
 		if v := r[1].Interface(); v != nil {
 			err = v.(error)
 		} else if !r[0].IsNil() {
@@ -42,12 +42,17 @@ func InvokeLocalFunc(app cfacade.IApplication, fi *creflect.FuncInfo, m *cfacade
 	values := make([]reflect.Value, 2)
 	values[0] = reflect.ValueOf(m.Session) // session
 	values[1] = reflect.ValueOf(m.Args)    // args
-	resp, err := PCall(fi, values)
+	resp, err, ok := PCall(fi, values)
+	if !ok {
+		clog.Debugf("[InvokeLocalFunc]. function: %s is not standardization, target=%s",
+			m.FuncName, m.Target)
+		return
+	}
 	s := m.Session
 	if err == nil || reflect.ValueOf(err).IsNil() {
-		pomelo.Response(actor, s.AgentPath, s.Sid, s.Mid, resp)
+		Response(actor, s.AgentPath, s.Sid, s.Mid, resp)
 	} else {
-		pomelo.ResponseError(actor, s.AgentPath, s.Sid, s.Mid, err)
+		ResponseError(actor, s.AgentPath, s.Sid, s.Mid, err)
 		clog.Warnf("[InvokeLocalFunc] err:%s,target=%s,funcName=%s",
 			err.Error(), m.Target, m.FuncName)
 	}

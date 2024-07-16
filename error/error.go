@@ -12,10 +12,14 @@ type BaseError struct {
 
 // NewError ctor
 func NewError(err error, code int32) *BaseError {
+	if err == nil {
+		return &BaseError{
+			Code: code,
+		}
+	}
 	if err, ok := err.(*BaseError); ok {
 		return err
 	}
-
 	e := &BaseError{
 		Code:    code,
 		Message: err.Error(),

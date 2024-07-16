@@ -110,18 +110,16 @@ func (p *actorPlayer) playerCreate(session *cproto.Session, req *pb.PlayerCreate
 }
 
 // playerEnter 玩家进入游戏
-func (p *actorPlayer) playerEnter(session *cproto.Session, req *pb.Int64) {
+func (p *actorPlayer) playerEnter(session *cproto.Session, req *pb.Int64) (*pb.PlayerEnterResponse, error) {
 	playerId := req.Value
 	if playerId < 1 {
-		p.ResponseCode(session, code.PlayerIdError)
-		return
+		return nil, cherryError.NewError(nil, code.PlayerIdError)
 	}
 
 	// 检查并查找该用户下的该角色
 	playerTable, found := db.GetPlayerTable(req.GetValue())
 	if found == false {
-		p.ResponseCode(session, code.PlayerIdError)
-		return
+		return nil, cherryError.NewError(nil, code.PlayerIdError)
 	}
 
 	// 保存进入游戏的玩家对应的agentPath
@@ -147,15 +145,14 @@ func (p *actorPlayer) playerEnter(session *cproto.Session, req *pb.Int64) {
 	// [04]推送角色 邮件数据
 	//module.Mail.ListPush(session, playerId)
 
-	// [99]最后推送 角色进入游戏响应结果
-	response := &pb.PlayerEnterResponse{}
-	response.GuideMaps = map[int32]int32{}
-
-	p.Response(session, response)
-
 	// 角色登录事件
 	loginEvent := event.NewPlayerLogin(p.ActorID(), playerId)
 	p.PostEvent(&loginEvent)
+
+	// [99]最后推送 角色进入游戏响应结果
+	return &pb.PlayerEnterResponse{
+		GuideMaps: map[int32]int32{},
+	}, nil
 }
 
 func buildPBPlayer(playerTable *db.PlayerTable) pb.Player {

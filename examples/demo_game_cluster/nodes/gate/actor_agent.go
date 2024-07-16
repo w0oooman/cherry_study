@@ -128,7 +128,7 @@ func (p *ActorAgent) checkGateSession(uid cfacade.UID) {
 	for _, member := range members {
 		// user是gate.go里自定义的agentActorID
 		actorPath := cfacade.NewPath(member.GetNodeId(), "user")
-		p.Call(actorPath, pomelo.KickFuncName, rsp)
+		p.Call(actorPath, cactor.KickFuncName, rsp)
 	}
 }
 
