@@ -5,14 +5,14 @@ import (
 	"github.com/cherry-game/cherry/examples/demo_game_cluster/nodes/game/module/online"
 	cfacade "github.com/cherry-game/cherry/facade"
 	clog "github.com/cherry-game/cherry/logger"
-	"github.com/cherry-game/cherry/net/parser/pomelo"
+	cherryActor "github.com/cherry-game/cherry/net/actor"
 	"time"
 )
 
 type (
 	// ActorPlayers 玩家总管理actor
 	ActorPlayers struct {
-		pomelo.ActorBase
+		cherryActor.PomeloActorBase
 		childExitTime time.Duration
 	}
 )

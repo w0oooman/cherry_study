@@ -2,6 +2,7 @@ package pomelo
 
 import (
 	"fmt"
+	cherryError "github.com/cherry-game/cherry/error"
 	"net"
 	"sync/atomic"
 	"time"
@@ -359,6 +360,19 @@ func (a *Agent) ResponseCode(session *cproto.Session, statusCode int32, isError 
 		Code: statusCode,
 	}
 	a.ResponseMID(session.Mid, rsp, isError...)
+}
+
+func (a *Agent) ResponseError(session *cproto.Session, err error) {
+	baseError, ok := err.(*cherryError.BaseError)
+	if !ok {
+		clog.Errorf("[ResponseError] err type is not *cherryError.BaseError, err=%s", err.Error())
+		return
+	}
+	rsp := &cproto.Response{
+		Code:    baseError.Code,
+		Message: baseError.Message,
+	}
+	a.ResponseMID(session.Mid, rsp, true)
 }
 
 func (a *Agent) ResponseMID(mid uint32, v interface{}, isError ...bool) {

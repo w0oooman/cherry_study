@@ -1,13 +1,13 @@
-package pomelo
+package cherryActor
 
 import (
+	"github.com/cherry-game/cherry/net/parser/pomelo"
 	"net"
 	"time"
 
 	ccode "github.com/cherry-game/cherry/code"
 	cfacade "github.com/cherry-game/cherry/facade"
 	clog "github.com/cherry-game/cherry/logger"
-	cactor "github.com/cherry-game/cherry/net/actor"
 	pomeloMessage "github.com/cherry-game/cherry/net/parser/pomelo/message"
 	ppacket "github.com/cherry-game/cherry/net/parser/pomelo/packet"
 	cproto "github.com/cherry-game/cherry/net/proto"
@@ -16,23 +16,23 @@ import (
 )
 
 type (
-	actor struct {
-		cactor.Base
+	pomeloActor struct {
+		Base
 		agentActorID   string
 		connectors     []cfacade.IConnector
-		onNewAgentFunc OnNewAgentFunc
+		onNewAgentFunc OnNewPomeloAgentFunc
 		onInitFunc     func()
 	}
 
-	OnNewAgentFunc func(newAgent *Agent)
+	OnNewPomeloAgentFunc func(newAgent *pomelo.Agent)
 )
 
-func NewActor(agentActorID string) *actor {
+func NewPomeloActor(agentActorID string) *pomeloActor {
 	if agentActorID == "" {
 		panic("agentActorID is empty.")
 	}
 
-	parser := &actor{
+	parser := &pomeloActor{
 		agentActorID: agentActorID,
 		connectors:   make([]cfacade.IConnector, 0),
 		onInitFunc:   nil,
@@ -42,27 +42,27 @@ func NewActor(agentActorID string) *actor {
 }
 
 // OnInit Actor初始化前触发该函数
-func (p *actor) OnInit() {
-	p.Remote().Register(cactor.ResponseFuncName, p.response)
-	p.Remote().Register(cactor.PushFuncName, p.push)
-	p.Remote().Register(cactor.KickFuncName, p.kick)
-	p.Remote().Register(cactor.BroadcastName, p.broadcast)
+func (p *pomeloActor) OnInit() {
+	p.Remote().Register(ResponseFuncName, p.response)
+	p.Remote().Register(PushFuncName, p.push)
+	p.Remote().Register(KickFuncName, p.kick)
+	p.Remote().Register(BroadcastName, p.broadcast)
 
 	if p.onInitFunc != nil {
 		p.onInitFunc()
 	}
 }
 
-func (p *actor) SetOnInitFunc(fn func()) {
+func (p *pomeloActor) SetOnInitFunc(fn func()) {
 	p.onInitFunc = fn
 }
 
-func (p *actor) Load(app cfacade.IApplication) {
+func (p *pomeloActor) Load(app cfacade.IApplication) {
 	if len(p.connectors) < 1 {
 		panic("connectors is nil. Please call the AddConnector(...) method add IConnector.")
 	}
 
-	cmd.init(app)
+	pomelo.Cmd().Init(app)
 
 	//  Create agent actor
 	if _, err := app.ActorSystem().CreateActor(p.agentActorID, p); err != nil {
@@ -75,71 +75,69 @@ func (p *actor) Load(app cfacade.IApplication) {
 	}
 }
 
-func (p *actor) AddConnector(connector cfacade.IConnector) {
+func (p *pomeloActor) AddConnector(connector cfacade.IConnector) {
 	p.connectors = append(p.connectors, connector)
 }
 
-func (p *actor) Connectors() []cfacade.IConnector {
+func (p *pomeloActor) Connectors() []cfacade.IConnector {
 	return p.connectors
 }
 
 // defaultOnConnectFunc 创建新连接时，通过当前agentActor创建child agent actor
-func (p *actor) defaultOnConnectFunc(conn net.Conn) {
+func (p *pomeloActor) defaultOnConnectFunc(conn net.Conn) {
 	session := &cproto.Session{
 		Sid:       nuid.Next(),
 		AgentPath: p.Path().String(),
 		Data:      map[string]string{},
 	}
 
-	agent := NewAgent(p.App(), conn, session)
+	agent := pomelo.NewAgent(p.App(), conn, session)
 
 	if p.onNewAgentFunc != nil {
 		p.onNewAgentFunc(&agent)
 	}
 
-	BindSID(&agent)
+	pomelo.BindSID(&agent)
 	agent.Run()
 }
 
-func (*actor) SetDictionary(dict map[string]uint16) {
+func (*pomeloActor) SetDictionary(dict map[string]uint16) {
 	pomeloMessage.SetDictionary(dict)
 }
 
-func (*actor) SetDataCompression(compression bool) {
+func (*pomeloActor) SetDataCompression(compression bool) {
 	pomeloMessage.SetDataCompression(compression)
 }
 
-func (*actor) SetWriteBacklog(size int) {
-	cmd.writeBacklog = size
+func (*pomeloActor) SetWriteBacklog(size int) {
+	pomelo.Cmd().SetWriteBacklog(size)
 }
 
-func (*actor) SetHeartbeat(t time.Duration) {
+func (*pomeloActor) SetHeartbeat(t time.Duration) {
 	if t.Seconds() < 1 {
 		t = 60 * time.Second
 	}
-	cmd.heartbeatTime = t
+	pomelo.Cmd().SetHeartbeat(t)
 }
 
-func (*actor) SetSysData(key string, value interface{}) {
-	cmd.sysData[key] = value
+func (*pomeloActor) SetSysData(key string, value interface{}) {
+	pomelo.Cmd().SetSysData(key, value)
 }
 
-func (p *actor) SetOnNewAgent(fn OnNewAgentFunc) {
+func (p *pomeloActor) SetOnNewAgent(fn OnNewPomeloAgentFunc) {
 	p.onNewAgentFunc = fn
 }
 
-func (*actor) SetOnDataRoute(fn DataRouteFunc) {
-	if fn != nil {
-		cmd.onDataRouteFunc = fn
-	}
+func (*pomeloActor) SetOnDataRoute(fn pomelo.DataRouteFunc) {
+	pomelo.Cmd().SetOnDataRoute(fn)
 }
 
-func (*actor) SetOnPacket(typ ppacket.Type, fn PacketFunc) {
-	cmd.onPacketFuncMap[typ] = fn
+func (*pomeloActor) SetOnPacket(typ ppacket.Type, fn pomelo.PacketFunc) {
+	pomelo.Cmd().SetOnPacket(typ, fn)
 }
 
-func (p *actor) response(rsp *cproto.PomeloResponse) {
-	agent, found := GetAgent(rsp.Sid)
+func (p *pomeloActor) response(rsp *cproto.PomeloResponse) {
+	agent, found := pomelo.GetAgent(rsp.Sid)
 	if !found {
 		if clog.PrintLevel(zapcore.DebugLevel) {
 			clog.Debugf("[response] Not found agent. [rsp = %+v]", rsp)
@@ -158,8 +156,8 @@ func (p *actor) response(rsp *cproto.PomeloResponse) {
 	}
 }
 
-func (p *actor) push(rsp *cproto.PomeloPush) {
-	agent, found := GetAgent(rsp.Sid)
+func (p *pomeloActor) push(rsp *cproto.PomeloPush) {
+	agent, found := pomelo.GetAgent(rsp.Sid)
 	if !found {
 		if clog.PrintLevel(zapcore.DebugLevel) {
 			clog.Debugf("[push] Not found agent. [rsp = %+v]", rsp)
@@ -170,10 +168,10 @@ func (p *actor) push(rsp *cproto.PomeloPush) {
 	agent.Push(rsp.Route, rsp.Data)
 }
 
-func (p *actor) kick(rsp *cproto.PomeloKick) {
-	agent, found := GetAgentWithUID(rsp.Uid)
+func (p *pomeloActor) kick(rsp *cproto.PomeloKick) {
+	agent, found := pomelo.GetAgentWithUID(rsp.Uid)
 	if !found {
-		agent, found = GetAgent(rsp.Sid)
+		agent, found = pomelo.GetAgent(rsp.Sid)
 	}
 
 	if found {
@@ -181,16 +179,16 @@ func (p *actor) kick(rsp *cproto.PomeloKick) {
 	}
 }
 
-func (p *actor) broadcast(rsp *cproto.PomeloBroadcastPush) {
+func (p *pomeloActor) broadcast(rsp *cproto.PomeloBroadcastPush) {
 	if rsp.AllUID {
-		ForeachAgent(func(agent *Agent) {
+		pomelo.ForeachAgent(func(agent *pomelo.Agent) {
 			if agent.IsBind() {
 				agent.Push(rsp.Route, rsp.Data)
 			}
 		})
 	} else {
 		for _, uid := range rsp.UidList {
-			if agent, found := GetAgentWithUID(uid); found {
+			if agent, found := pomelo.GetAgentWithUID(uid); found {
 				agent.Push(rsp.Route, rsp.Data)
 			}
 		}

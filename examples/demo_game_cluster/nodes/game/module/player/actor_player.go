@@ -12,14 +12,14 @@ import (
 	"github.com/cherry-game/cherry/examples/demo_game_cluster/nodes/game/module/online"
 	cstring "github.com/cherry-game/cherry/extend/string"
 	clog "github.com/cherry-game/cherry/logger"
-	"github.com/cherry-game/cherry/net/parser/pomelo"
+	cherryActor "github.com/cherry-game/cherry/net/actor"
 	cproto "github.com/cherry-game/cherry/net/proto"
 )
 
 type (
 	// actorPlayer 每位登录的玩家对应一个子actor
 	actorPlayer struct {
-		pomelo.ActorBase
+		cherryActor.PomeloActorBase
 		isOnline bool // 玩家是否在线
 		playerId int64
 		uid      int64

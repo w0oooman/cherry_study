@@ -44,7 +44,11 @@ var (
 	}
 )
 
-func (p *Command) init(app cfacade.IApplication) {
+func Cmd() *Command {
+	return &cmd
+}
+
+func (p *Command) Init(app cfacade.IApplication) {
 	p.setData(DataHeartbeat, p.heartbeatTime.Seconds())
 	p.setData(DataDict, pmessage.GetDictionary())
 	p.setData(DataSerializer, app.Serializer().Name())
@@ -107,6 +111,28 @@ func (p *Command) setOnPacketFunc() {
 			p.onPacketFuncMap[name] = packetFunc
 		}
 	}
+}
+
+func (p *Command) SetWriteBacklog(size int) {
+	p.writeBacklog = size
+}
+
+func (p *Command) SetHeartbeat(t time.Duration) {
+	p.heartbeatTime = t
+}
+
+func (p *Command) SetSysData(key string, value interface{}) {
+	p.sysData[key] = value
+}
+
+func (p *Command) SetOnDataRoute(fn DataRouteFunc) {
+	if fn != nil {
+		p.onDataRouteFunc = fn
+	}
+}
+
+func (p *Command) SetOnPacket(typ ppacket.Type, fn PacketFunc) {
+	p.onPacketFuncMap[typ] = fn
 }
 
 func handshakeCommand(agent *Agent, _ *ppacket.Packet) {

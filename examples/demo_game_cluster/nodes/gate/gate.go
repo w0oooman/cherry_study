@@ -7,6 +7,7 @@ import (
 	checkCenter "github.com/cherry-game/cherry/examples/demo_game_cluster/internal/component/check_center"
 	"github.com/cherry-game/cherry/examples/demo_game_cluster/internal/data"
 	cfacade "github.com/cherry-game/cherry/facade"
+	cherryActor "github.com/cherry-game/cherry/net/actor"
 	cconnector "github.com/cherry-game/cherry/net/connector"
 	"github.com/cherry-game/cherry/net/parser/pomelo"
 	"github.com/cherry-game/cherry/net/parser/simple"
@@ -34,6 +35,7 @@ func Run(profileFilePath, nodeId string) {
 	app.Register(checkCenter.New())
 	// 注册数据配表组件，具体详见data-config的使用方法和参数配置
 	app.Register(data.New())
+	app.ActorSystem().SetLocalInvoke(cherryActor.AgentInvokeLocalFunc)
 
 	//启动cherry引擎
 	app.Startup()
@@ -41,7 +43,7 @@ func Run(profileFilePath, nodeId string) {
 
 func buildPomeloParser(app *cherry.AppBuilder) cfacade.INetParser {
 	// 使用pomelo网络数据包解析器
-	agentActor := pomelo.NewActor("user")
+	agentActor := cherryActor.NewPomeloActor("user")
 	//创建一个tcp监听，用于client/robot压测机器人连接网关tcp
 	agentActor.AddConnector(cconnector.NewTCP(":10011"))
 	//再创建一个websocket监听，用于h5客户端建立连接
@@ -61,7 +63,7 @@ func buildPomeloParser(app *cherry.AppBuilder) cfacade.INetParser {
 
 // 构建简单的网络数据包解析器
 func buildSimpleParser(app *cherry.AppBuilder) cfacade.INetParser {
-	agentActor := simple.NewActor("user")
+	agentActor := cherryActor.NewSimpleActor("user")
 	agentActor.AddConnector(cconnector.NewTCP(":10011"))
 	agentActor.AddConnector(cconnector.NewWS(app.Address()))
 

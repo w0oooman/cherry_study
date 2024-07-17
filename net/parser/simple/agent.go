@@ -235,7 +235,7 @@ func (a *Agent) processPacket(msg *Message) {
 		return
 	}
 
-	onDataRouteFunc(a, msg, nodeRoute)
+	OnDataRouteFunc(a, msg, nodeRoute)
 
 	// update last time
 	a.SetLastAt()
