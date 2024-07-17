@@ -1,6 +1,7 @@
 package cherryActor
 
 import (
+	"github.com/cherry-game/cherry/net/parser/pomelo"
 	"google.golang.org/protobuf/proto"
 	"reflect"
 
@@ -48,11 +49,47 @@ func InvokeLocalFunc(app cfacade.IApplication, fi *creflect.FuncInfo, m *cfacade
 			m.FuncName, m.Target)
 		return
 	}
+
 	s := m.Session
 	if err == nil || reflect.ValueOf(err).IsNil() {
 		Response(actor, s.AgentPath, s.Sid, s.Mid, resp)
 	} else {
 		ResponseError(actor, s.AgentPath, s.Sid, s.Mid, err)
+		clog.Warnf("[InvokeLocalFunc] err:%s,target=%s,funcName=%s",
+			err.Error(), m.Target, m.FuncName)
+	}
+}
+
+func AgentInvokeLocalFunc(app cfacade.IApplication, fi *creflect.FuncInfo, m *cfacade.Message, actor cfacade.IActor) {
+	if app == nil {
+		clog.Errorf("[AgentInvokeLocalFunc] app is nil. [message = %+v]", m)
+		return
+	}
+
+	EncodeLocalArgs(app, fi, m)
+
+	values := make([]reflect.Value, 2)
+	values[0] = reflect.ValueOf(m.Session) // session
+	values[1] = reflect.ValueOf(m.Args)    // args
+	resp, err, ok := PCall(fi, values)
+	if !ok {
+		clog.Debugf("[AgentInvokeLocalFunc]. function: %s is not standardization, target=%s",
+			m.FuncName, m.Target)
+		return
+	}
+
+	s := m.Session
+	agent, ok := pomelo.GetAgent(s.Sid)
+	if !ok {
+		clog.Debugf("[AgentInvokeLocalFunc]. agent is not found, sid=%s, uid=%d, target=%s",
+			s.Sid, s.Uid, m.FuncName, m.Target)
+		return
+	}
+
+	if err == nil || reflect.ValueOf(err).IsNil() {
+		agent.Response(s, resp)
+	} else {
+		agent.ResponseError(s, err)
 		clog.Warnf("[InvokeLocalFunc] err:%s,target=%s,funcName=%s",
 			err.Error(), m.Target, m.FuncName)
 	}

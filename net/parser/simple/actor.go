@@ -21,7 +21,7 @@ type (
 		onNewAgentFunc OnNewAgentFunc
 	}
 
-	OnNewAgentFunc func(newAgent *Agent)
+	OnNewAgentFunc func(newAgent *simple.Agent)
 )
 
 func NewActor(agentActorID string) *actor {
@@ -78,13 +78,13 @@ func (p *actor) defaultOnConnectFunc(conn net.Conn) {
 		Data:      map[string]string{},
 	}
 
-	agent := NewAgent(p.App(), conn, session)
+	agent := simple.NewAgent(p.App(), conn, session)
 
 	if p.onNewAgentFunc != nil {
 		p.onNewAgentFunc(&agent)
 	}
 
-	BindSID(&agent)
+	simple.BindSID(&agent)
 	agent.Run()
 }
 
@@ -111,7 +111,7 @@ func (*actor) SetOnDataRoute(fn DataRouteFunc) {
 }
 
 func (p *actor) response(rsp *cproto.PomeloResponse) {
-	agent, found := GetAgent(rsp.Sid)
+	agent, found := simple.GetAgent(rsp.Sid)
 	if !found {
 		if clog.PrintLevel(zapcore.DebugLevel) {
 			clog.Debugf("[response] Not found agent. [rsp = %+v]", rsp)
